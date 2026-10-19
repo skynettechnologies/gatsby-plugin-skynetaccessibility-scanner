@@ -28,13 +28,14 @@ export default function SkynetScannerAdmin() {
             plans: []
         };
 
+        // Set to false on cleanup so a run that is being replaced
+        // (page left, or hot reload in development) never renders stale data
+        var isActive = true;
+
         // Initialize the application
         function initializeApp() {
+            // Always the site the plugin is running on (hostname has no protocol or port)
             var url = window.location.hostname;
-            if(url === 'localhost'){
-                url = 'skynetaccessibilityscanner.netlify.app';
-            }
-            console.log('No URL parameter provided');
             if (!url) {
                 console.error('No URL parameter provided');
                 return;
@@ -52,7 +53,7 @@ export default function SkynetScannerAdmin() {
                 return fetchPackages(url);
             }).then(function() {
                 // Render the UI
-                renderUI();
+                if (isActive) renderUI();
             }).catch(function(error) {
                 console.error('Error initializing app:', error);
             });
@@ -270,6 +271,8 @@ export default function SkynetScannerAdmin() {
                 (endDateStr && endDateStr < today);
             // TRUE cancelled condition (but not expired yet)
             var isCancelled = cancelDate && cancelDate <= today && !isExpired;
+            // Free plan created on install (not a paid subscription)
+            var isTrial = appData.isTrialPeriod == 1;
 
             // Plan name
             if (isExpired) {
@@ -277,7 +280,7 @@ export default function SkynetScannerAdmin() {
                     '<span style="color: #9F0000; font-weight: 700;">Your Plan has Expired</span>';
             } else {
                 planNameElement.textContent =
-                    appData.isTrialPeriod == 1 ? "Free Plan" : appData.packageName + " Plan";
+                    isTrial ? "Free Plan" : appData.packageName + " Plan";
             }
 
             // Plan pages
@@ -316,9 +319,10 @@ export default function SkynetScannerAdmin() {
                     day: "numeric",
                 });
 
-                if (isCancelled) {
+                // Free and cancelled plans do not auto-renew
+                if (isTrial || isCancelled) {
                     planRenewalElement.innerHTML =
-                        "Expires on: <strong>" + formattedDate + "</strong>";
+                        '<span style="color: #9F0000;">Expires on:</span> <strong>' + formattedDate + "</strong>";
                 } else {
                     planRenewalElement.innerHTML =
                         "Renews on: <strong>" + formattedDate + "</strong>";
@@ -334,17 +338,28 @@ export default function SkynetScannerAdmin() {
                     "Expired on: <strong>" + formattedDate + "</strong>";
             }
 
-            // Cancel/Renew button
-            // var showRenew = cancelDate <= today || isExpired;
-            var showRenew = isExpired || isCancelled;
-            if (showRenew) {
+            // Activate/Renew/Cancel button
+            // data-action is read by the click handler so each label opens its own link
+            if (isExpired) {
                 cancelBtnElement.style.backgroundColor = "#420083";
                 cancelBtnElement.style.color = "#fff";
                 cancelBtnElement.textContent = "Renew Plan";
+                cancelBtnElement.setAttribute("data-action", "renew");
+            } else if (isTrial) {
+                cancelBtnElement.style.backgroundColor = "#420083";
+                cancelBtnElement.style.color = "#fff";
+                cancelBtnElement.textContent = "Activate Now";
+                cancelBtnElement.setAttribute("data-action", "activate");
+            } else if (isCancelled) {
+                cancelBtnElement.style.backgroundColor = "#420083";
+                cancelBtnElement.style.color = "#fff";
+                cancelBtnElement.textContent = "Renew Plan";
+                cancelBtnElement.setAttribute("data-action", "renew");
             } else {
                 cancelBtnElement.style.backgroundColor = "";
                 cancelBtnElement.style.color = "";
                 cancelBtnElement.textContent = "Cancel Subscription";
+                cancelBtnElement.setAttribute("data-action", "cancel");
             }
         }
 
@@ -527,9 +542,10 @@ export default function SkynetScannerAdmin() {
         }
 
         // Handle upgrade/cancel button clicks
-        document.addEventListener("click", function(e) {
+        // Named so the cleanup below can remove it; otherwise every revisit via
+        // Gatsby client-side navigation adds another listener and opens another tab
+        function handlePlanButtonClick(e) {
             if (e.target.classList.contains("upgrade-btn")) {
-                console.log('update clickk',e.dataset);
                 var planId = e.target.getAttribute("data-planid");
                 var actionType = e.target.getAttribute("data-action");
                 var interval = e.target.getAttribute("data-interval");
@@ -552,10 +568,25 @@ export default function SkynetScannerAdmin() {
                 }
                 getOpenLink(payload);
             }
-        });
+        }
+        document.addEventListener("click", handlePlanButtonClick);
 
+        // Every element handler below is named and removed on cleanup. If one stayed
+        // attached after a re-run, it kept its own appData and a single Renew Plan
+        // click opened two different autologin links.
         var cancel_subscription_btn = document.getElementById("cancel-subscription-btn");
-        cancel_subscription_btn.addEventListener("click", function() {
+        function handleMainPlanButtonClick() {
+            var buttonAction = cancel_subscription_btn.getAttribute("data-action");
+
+            // Activate Now / Renew Plan go to the dashboard; requesting the
+            // 'cancel' plan-action link here opened the Cancel Plan popup instead
+            if (buttonAction === "activate" || buttonAction === "renew") {
+                window.open(appData.dashboardLink || "https://skynetaccessibilityscan.com/dashboard", "_blank");
+                return;
+            }
+            // Plan details not loaded yet
+            if (buttonAction !== "cancel") return;
+
             // Prepare request payload
             var payload = {
                 website_id: appData.websiteId,
@@ -563,7 +594,8 @@ export default function SkynetScannerAdmin() {
                 action: 'cancel'
             };
             getOpenLink(payload);
-        });
+        }
+        cancel_subscription_btn.addEventListener("click", handleMainPlanButtonClick);
 
         function getOpenLink(payload) {
             var newWindow = window.open('', '_blank');
@@ -588,11 +620,12 @@ export default function SkynetScannerAdmin() {
 
         // Handle violation link
         var view_all_violations = document.getElementById("view-all-violations");
-        view_all_violations.addEventListener("click", function() {
+        function handleViewViolationsClick() {
             if (appData.violationLink) {
                 window.open(appData.violationLink, '_blank');
             }
-        });
+        }
+        view_all_violations.addEventListener("click", handleViewViolationsClick);
 
         // Toggle between monthly and annual plans
         var toggle = document.getElementById("billing-toggle");
@@ -616,18 +649,19 @@ export default function SkynetScannerAdmin() {
             annualclass.style.display = "block";
         }
 
-        toggle.addEventListener("change", function() {
+        function handleBillingToggleChange() {
             if (toggle.checked) {
                 showAnnual();
             } else {
                 showMonthly();
             }
-        });
+        }
+        toggle.addEventListener("change", handleBillingToggleChange);
 
         // Initialize the application
         initializeApp();
         // Set initial state after data is loaded
-        setTimeout(function() {
+        var billingTimer = setTimeout(function() {
             if (appData.subscrInterval === 'Y') {
                 showAnnual();
             } else {
@@ -637,19 +671,29 @@ export default function SkynetScannerAdmin() {
 
         // Show violation details
         var show_scan_details = document.getElementById("scan-score");
-        show_scan_details.addEventListener("click", function() {
+        function handleScanScoreClick() {
             document.getElementById("section1").style.display = "none";
             document.getElementById("section2").style.display = "block";
-        });
+        }
+        show_scan_details.addEventListener("click", handleScanScoreClick);
 
         // Go back to main view
         var go_back = document.getElementById("back-btn");
-        go_back.addEventListener("click", function() {
+        function handleBackClick() {
             document.getElementById("section2").style.display = "none";
             document.getElementById("section1").style.display = "block";
-        });
+        }
+        go_back.addEventListener("click", handleBackClick);
 
         return () => {
+            isActive = false;
+            clearTimeout(billingTimer);
+            document.removeEventListener("click", handlePlanButtonClick);
+            cancel_subscription_btn.removeEventListener("click", handleMainPlanButtonClick);
+            view_all_violations.removeEventListener("click", handleViewViolationsClick);
+            toggle.removeEventListener("change", handleBillingToggleChange);
+            show_scan_details.removeEventListener("click", handleScanScoreClick);
+            go_back.removeEventListener("click", handleBackClick);
             document.body.removeChild(jq);
             document.body.removeChild(bs);
         }

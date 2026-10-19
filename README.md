@@ -72,18 +72,26 @@ Our SkynetAccessibility Scanner Application aligns with European country-level a
 
 ## Installation
 
-1. **NPM:** `$ npm install --save gatsby-plugin-skynetaccessibility-scanner`
-2. **YARN:** `$ yarn add gatsby-plugin-skynetaccessibility-scanner`
+1. **Install the plugin** with either package manager:
+    - **NPM:** `$ npm install --save gatsby-plugin-skynetaccessibility-scanner`
+    - **YARN:** `$ yarn add gatsby-plugin-skynetaccessibility-scanner`
 2. **Configuration:**
     
     In your gatsby-config.js file:
     ```javascript
     plugins: [
+      "gatsby-plugin-skynetaccessibility-scanner",
+    ];
+    ```
+    If you copied the plugin into your site's `plugins/` folder instead of installing it from npm, use:
+    ```javascript
+    plugins: [
       {
-          resolve: require.resolve("./plugins/gatsby-plugin-skynetaccessibility-scanner")          
+          resolve: require.resolve("./plugins/gatsby-plugin-skynetaccessibility-scanner")
       }
     ];
     ```
+3. Restart `gatsby develop`, then open `/skynet-accessibility-scanner/` on your site.
     Add this link in admin section '[SkynetAccessibility Scanner](/skynet-accessibility-scanner/)'.    
 
 ## How It Works

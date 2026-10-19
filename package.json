@@ -3,7 +3,7 @@
   "description": "The SkynetAccessibility Scanner Application is a powerful Accessibility Testing Tool and Accessibility Scanning Software that enables organizations, businesses, government entities, and individuals to proactively scan, monitor, and remediate accessibility compliance issues. It functions as both an Accessibility Checker and Accessibility Compliance Testing Software, ensuring websites and applications meet global and regional accessibility standards.",
   "author": "Skynet Technologies USA LLC <developer3@skynettechnologies.com>",
   "license": "MIT",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "main": "gatsby-node.js",
   "homepage": "https://github.com/skynettechnologies/gatsby-plugin-skynetaccessibility-scanner#readme",
   "repository": "git@github.com:skynettechnologies/gatsby-plugin-skynetaccessibility-scanner.git",
@@ -21,21 +21,13 @@
     "gatsby-plugin",
     "gatsby-plugin-skynetaccessibility-scanner"
   ],
-  "scripts": {
-    "build": "babel src --out-dir . --ignore tests",
-    "build:watch": "yarn build -w",
-    "prepare": "yarn build",
-    "build-n-pack": "yarn build && yarn pack --filename ./gatsby-plugin-segment-js.tgz"
-  },
+  "files": [
+    "gatsby-node.js",
+    "src",
+    "README.md",
+    "LICENSE"
+  ],
   "peerDependencies": {
     "gatsby": "^2 || ^3 || ^4 || ^5"
-  },
-  "devDependencies": {
-    "babel-cli": "^6.24.1",
-    "babel-preset-env": "^1.7.0",
-    "babel-preset-react": "^6.24.1",
-    "eslint": "^7.32.0",
-    "eslint-plugin-mocha": "^9",
-    "eslint-plugin-react": "^7.24.0"
   }
 }
